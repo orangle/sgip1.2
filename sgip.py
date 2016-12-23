@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 """
 SGIP message defininitions and operations
 
@@ -7,6 +6,7 @@ orangleliu@2015-04-29 m
 """
 
 from struct import *
+
 
 # Error Code Definition
 class ErrorCode(object):
@@ -36,10 +36,12 @@ class ErrorCode(object):
     SYS_FAILED = 32
     SMS_CENTER_QUEUE_FULL = 33
 
+
 # Ancestor of all Messages
 class BaseMSG(object):
     fmt = ''  # struct format
     struct_tool = None
+
     def __init__(self):
         self.struct_tool = Struct(self.fmt)
 
@@ -52,11 +54,12 @@ class BaseMSG(object):
     def size(cls):
         return calcsize(cls.fmt)
 
+
 # define SGIP Header
 class SGIPHeader(BaseMSG):
-    fmt = '!II3I' # struct format
+    fmt = '!II3I'  # struct format
 
-    def __init__(self, msg_len = 20, command_id = 0, seq_num = [0, 0, 0]):
+    def __init__(self, msg_len=20, command_id=0, seq_num=[0, 0, 0]):
         super(SGIPHeader, self).__init__()
         self.MessageLength = msg_len
         self.CommandID = command_id
@@ -68,6 +71,7 @@ class SGIPHeader(BaseMSG):
         self.MessageLength = header_tuple[0]
         self.CommandID = header_tuple[1]
         self.SequenceNumber = list(header_tuple[2:])
+
 
 # define SGIP base message
 class BaseSGIPMSG(BaseMSG):
@@ -99,11 +103,12 @@ class BaseSGIPMSG(BaseMSG):
     def unpackBody(self, raw_msg):
         pass
 
+
 # define Base SGIP Resp Message
 class BaseSGIPResp(BaseSGIPMSG):
     fmt = '!B8s'
 
-    def __init__(self, result = 0, reserve = ''):
+    def __init__(self, result=0, reserve=''):
         super(BaseSGIPResp, self).__init__()
         self.Result = result
         self.Reserve = reserve
@@ -114,7 +119,10 @@ class BaseSGIPResp(BaseSGIPMSG):
         self.Reserve = body_tuple[1]
 
     def _pack(self, msg_fmt):
-        raw_msg = pack(msg_fmt, self.header.MessageLength, self.header.CommandID, self.header.SequenceNumber[0], self.header.SequenceNumber[1], self.header.SequenceNumber[2], self.Result, self.Reserve)
+        raw_msg = pack(
+            msg_fmt, self.header.MessageLength, self.header.CommandID,
+            self.header.SequenceNumber[0], self.header.SequenceNumber[1],
+            self.header.SequenceNumber[2], self.Result, self.Reserve)
         return raw_msg
 
 
@@ -123,7 +131,7 @@ class SGIPBind(BaseSGIPMSG):
     ID = 0x1
     fmt = '!B16s16s8s'
 
-    def __init__(self, login_type = 1, login_name = '', login_pwd = '', reserve = ''):
+    def __init__(self, login_type=1, login_name='', login_pwd='', reserve=''):
         super(SGIPBind, self).__init__()
         self.LoginType = login_type
         self.LoginName = login_name
@@ -138,7 +146,11 @@ class SGIPBind(BaseSGIPMSG):
         self.Reserve = body_tuple[3]
 
     def _pack(self, msg_fmt):
-        raw_msg = pack(msg_fmt, self.header.MessageLength, self.header.CommandID, self.header.SequenceNumber[0], self.header.SequenceNumber[1], self.header.SequenceNumber[2], self.LoginType, self.LoginName, self.LoginPassword, self.Reserve)
+        raw_msg = pack(msg_fmt, self.header.MessageLength,
+                       self.header.CommandID, self.header.SequenceNumber[0],
+                       self.header.SequenceNumber[1],
+                       self.header.SequenceNumber[2], self.LoginType,
+                       self.LoginName, self.LoginPassword, self.Reserve)
         return raw_msg
 
 
@@ -146,7 +158,7 @@ class SGIPBind(BaseSGIPMSG):
 class SGIPBindResp(BaseSGIPResp):
     ID = 0x80000001
 
-    def __init__(self, result = 0, reserve = ''):
+    def __init__(self, result=0, reserve=''):
         super(SGIPBindResp, self).__init__(result, reserve)
 
 
@@ -155,7 +167,10 @@ class SGIPUnbind(BaseSGIPMSG):
     ID = 0x2
 
     def _pack(self, msg_fmt):
-        raw_msg = pack(msg_fmt, self.header.MessageLength, self.header.CommandID, self.header.SequenceNumber[0], self.header.SequenceNumber[1], self.header.SequenceNumber[2])
+        raw_msg = pack(msg_fmt, self.header.MessageLength,
+                       self.header.CommandID, self.header.SequenceNumber[0],
+                       self.header.SequenceNumber[1],
+                       self.header.SequenceNumber[2])
         return raw_msg
 
 
@@ -164,16 +179,41 @@ class SGIPUnbindResp(BaseSGIPMSG):
     ID = 0x80000002
 
     def _pack(self, msg_fmt):
-        raw_msg = pack(msg_fmt, self.header.MessageLength, self.header.CommandID, self.header.SequenceNumber[0], self.header.SequenceNumber[1], self.header.SequenceNumber[2])
+        raw_msg = pack(msg_fmt, self.header.MessageLength,
+                       self.header.CommandID, self.header.SequenceNumber[0],
+                       self.header.SequenceNumber[1],
+                       self.header.SequenceNumber[2])
         return raw_msg
 
 
 # SGIP Submit Message
 class SGIPSubmit(BaseSGIPMSG):
     ID = 0x3
-    fmt = '!21s21sB21s5s10sB6s6s3B16s16s5BI0s8s' # it's only used for calculating real message content length, using myFmt to pack or unpack
+    fmt = '!21s21sB21s5s10sB6s6s3B16s16s5BI0s8s'  # it's only used for calculating real message content length, using myFmt to pack or unpack
 
-    def __init__(self, sp_number = '', charge_number = '000000000000000000000', user_count = 1, user_number = '', corp_id = '', service_type = '', fee_type = 0, fee_value = '0', given_value = '0', agent_flag = 1, morelateto_mt_flag = 1, priority = 9, expire_time = '', schedule_time = '', report_flag = 0, tp_pid = 0, tp_udhi = 0, msg_coding = 15, msg_type = 0, msg_len = 0, msg_content = '', reserve = ''):
+    def __init__(self,
+                 sp_number='',
+                 charge_number='000000000000000000000',
+                 user_count=1,
+                 user_number='',
+                 corp_id='',
+                 service_type='',
+                 fee_type=0,
+                 fee_value='0',
+                 given_value='0',
+                 agent_flag=1,
+                 morelateto_mt_flag=1,
+                 priority=9,
+                 expire_time='',
+                 schedule_time='',
+                 report_flag=0,
+                 tp_pid=0,
+                 tp_udhi=0,
+                 msg_coding=15,
+                 msg_type=0,
+                 msg_len=0,
+                 msg_content='',
+                 reserve=''):
         super(SGIPSubmit, self).__init__()
         self.SPNumber = sp_number
         self.ChargeNumber = charge_number
@@ -202,7 +242,8 @@ class SGIPSubmit(BaseSGIPMSG):
 
     @property
     def myFmt(self):
-        self._myFmt = '!21s21sB21s5s10sB6s6s3B16s16s5BI{0}s8s'.format(self.MessageLength)
+        self._myFmt = '!21s21sB21s5s10sB6s6s3B16s16s5BI{0}s8s'.format(
+            self.MessageLength)
         return self._myFmt
 
     # my fmt size
@@ -242,7 +283,16 @@ class SGIPSubmit(BaseSGIPMSG):
         return raw_msg
 
     def _pack(self, msg_fmt):
-        raw_msg = pack(msg_fmt, self.header.MessageLength, self.header.CommandID, self.header.SequenceNumber[0], self.header.SequenceNumber[1], self.header.SequenceNumber[2], self.SPNumber, self.ChargeNumber, self.UserCount, self.UserNumber, self.CorpId, self.ServiceType, self.FeeType, self.FeeValue, self.GivenValue, self.AgentFlag, self.MorelatetoMTFlag, self.Priority, self.ExpireTime, self.ScheduleTime, self.ReportFlag, self.TP_pid, self.TP_udhi, self.MessageCoding, self.MessageType, self.MessageLength, self.MessageContent, self.Reserve)
+        raw_msg = pack(
+            msg_fmt, self.header.MessageLength, self.header.CommandID,
+            self.header.SequenceNumber[0], self.header.SequenceNumber[1],
+            self.header.SequenceNumber[2], self.SPNumber, self.ChargeNumber,
+            self.UserCount, self.UserNumber, self.CorpId, self.ServiceType,
+            self.FeeType, self.FeeValue, self.GivenValue, self.AgentFlag,
+            self.MorelatetoMTFlag, self.Priority, self.ExpireTime,
+            self.ScheduleTime, self.ReportFlag, self.TP_pid, self.TP_udhi,
+            self.MessageCoding, self.MessageType, self.MessageLength,
+            self.MessageContent, self.Reserve)
         return raw_msg
 
 
@@ -250,16 +300,24 @@ class SGIPSubmit(BaseSGIPMSG):
 class SGIPSubmitResp(BaseSGIPResp):
     ID = 0x80000003
 
-    def __init__(self, result = 0, reserve = ''):
+    def __init__(self, result=0, reserve=''):
         super(SGIPSubmitResp, self).__init__(result, reserve)
 
 
 # SGIP Deliver Message
 class SGIPDeliver(BaseSGIPMSG):
     ID = 0x4
-    fmt = '!21s21s3BI0s8s' # it's only used for calculating real message content length, using myFmt to pack or unpack
+    fmt = '!21s21s3BI0s8s'  # it's only used for calculating real message content length, using myFmt to pack or unpack
 
-    def __init__(self, user_number = '', sp_number = '', tp_pid = 0, tp_udhi = 0, msg_code = 0, msg_len = 0, msg_content = '', reserve = ''):
+    def __init__(self,
+                 user_number='',
+                 sp_number='',
+                 tp_pid=0,
+                 tp_udhi=0,
+                 msg_code=0,
+                 msg_len=0,
+                 msg_content='',
+                 reserve=''):
         super(SGIPDeliver, self).__init__()
         self.UserNumber = user_number
         self.SPNumber = sp_number
@@ -307,7 +365,12 @@ class SGIPDeliver(BaseSGIPMSG):
         return raw_msg
 
     def _pack(self, msg_fmt):
-        raw_msg = pack(msg_fmt, self.header.MessageLength, self.header.CommandID, self.header.SequenceNumber[0], self.header.SequenceNumber[1], self.header.SequenceNumber[2], self.UserNumber, self.SPNumber, self.TP_pid, self.TP_udhi, self.MessageCoding, self.MessageLength, self.MessageContent, self.Reserve)
+        raw_msg = pack(
+            msg_fmt, self.header.MessageLength, self.header.CommandID,
+            self.header.SequenceNumber[0], self.header.SequenceNumber[1],
+            self.header.SequenceNumber[2], self.UserNumber, self.SPNumber,
+            self.TP_pid, self.TP_udhi, self.MessageCoding, self.MessageLength,
+            self.MessageContent, self.Reserve)
         return raw_msg
 
 
@@ -315,7 +378,7 @@ class SGIPDeliver(BaseSGIPMSG):
 class SGIPDeliverResp(BaseSGIPResp):
     ID = 0x80000004
 
-    def __init__(self, result = 0, reserve = ''):
+    def __init__(self, result=0, reserve=''):
         super(SGIPDeliverResp, self).__init__(result, reserve)
 
 
@@ -324,7 +387,13 @@ class SGIPReport(BaseSGIPMSG):
     ID = 0x5
     fmt = '!3IB21s2B8s'
 
-    def __init__(self, submit_seq_num = [0, 0, 0], report_type = 1, user_number = '', state = 0, error_code = 0, reserve = ''):
+    def __init__(self,
+                 submit_seq_num=[0, 0, 0],
+                 report_type=1,
+                 user_number='',
+                 state=0,
+                 error_code=0,
+                 reserve=''):
         super(SGIPReport, self).__init__()
         self.SubmitSequenceNumber = submit_seq_num
         self.ReportType = report_type
@@ -343,14 +412,21 @@ class SGIPReport(BaseSGIPMSG):
         self.Reserve = body_tuple[7]
 
     def _pack(self, msg_fmt):
-        raw_msg = pack(msg_fmt, self.header.MessageLength, self.header.CommandID, self.header.SequenceNumber[0], self.header.SequenceNumber[1], self.header.SequenceNumber[2], self.SubmitSequenceNumber[0], self.SubmitSequenceNumber[1], self.SubmitSequenceNumber[2], self.ReportType, self.UserNumber, self.State, self.ErrorCode, self.Reserve)
+        raw_msg = pack(
+            msg_fmt, self.header.MessageLength, self.header.CommandID,
+            self.header.SequenceNumber[0], self.header.SequenceNumber[1],
+            self.header.SequenceNumber[2], self.SubmitSequenceNumber[0],
+            self.SubmitSequenceNumber[1], self.SubmitSequenceNumber[2],
+            self.ReportType, self.UserNumber, self.State, self.ErrorCode,
+            self.Reserve)
         return raw_msg
+
 
 # SGIP Report Resp Message
 class SGIPReportResp(BaseSGIPResp):
     ID = 0x80000005
 
-    def __init__(self, result = 0, reserve = ''):
+    def __init__(self, result=0, reserve=''):
         super(SGIPReportResp, self).__init__(result, reserve)
 
 
@@ -371,8 +447,6 @@ if __name__ == "__main__":
     print 'Bind Raw Msg: ', raw_msg
     print 'Bind Msg ID: ', bind.ID
 
-
     raw_msg = pack('!B16s16s8s', 2, 'starkingwx', 'abc', 'blank')
     bind.unpackBody(raw_msg)
     print "Bind body: ", bind.LoginType, ' ', bind.LoginName, ' ', bind.LoginPassword, ' ', bind.Reserve
-
