@@ -3,12 +3,13 @@
 """
 SGIP Server, Http server, client->server->sgip(联通)
 """
+import httplib
 import sys
+import urllib
+
 reload(sys)
 sys.setdefaultencoding('utf8')
 
-import urllib
-import httplib
 try:
     import json
 except:

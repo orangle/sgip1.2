@@ -4,6 +4,13 @@
 SGIP Server, Http server, client->server->sgip(联通)
 """
 import sys
+
+from twisted.internet import reactor
+from twisted.web.resource import Resource
+from twisted.web.server import Site
+
+from sgip_client import send_sms
+
 reload(sys)
 sys.setdefaultencoding('utf8')
 
@@ -11,12 +18,6 @@ try:
     import json
 except:
     import simplejson as json
-
-from twisted.web.server import Site
-from twisted.web.resource import Resource
-from twisted.internet import reactor
-
-from sgip_client import send_sms
 
 
 class SmsAPI(Resource):
