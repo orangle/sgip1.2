@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 SGIP Server, Http server, client->server->sgip(联通)
 """
@@ -13,12 +12,12 @@ try:
 except:
     import simplejson as json
 
-
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.internet import reactor
 
 from sgip_client import send_sms
+
 
 class SmsAPI(Resource):
     def render_GET(self, request):
@@ -40,6 +39,7 @@ class SmsAPI(Resource):
             res["code"] = 3
 
         return json.dumps(res)
+
 
 root = Resource()
 root.putChild("smsapi", SmsAPI())

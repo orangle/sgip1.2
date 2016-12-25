@@ -4,8 +4,10 @@ SGIP message defininitions and operations
 
 orangleliu@2015-04-29 m
 """
-
+import logging
 from struct import *
+
+logger = logging.getLogger(__name__)
 
 
 # Error Code Definition
@@ -91,7 +93,7 @@ class BaseSGIPMSG(BaseMSG):
     def pack(self):
         self_fmt = self.fmt[1:]
         msg_fmt = self.header.fmt + self_fmt
-        print 'SGIP MSG format: ', msg_fmt
+        logger.debug('SGIP MSG format: ', msg_fmt)
         raw_msg = self._pack(msg_fmt)
         return raw_msg
 

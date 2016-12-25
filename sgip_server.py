@@ -1,9 +1,14 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+SGIP server for receiving SGIP message from SMG
+文档 3.7.2.6
 
+用来接收上行短信的，不知道有没有短信回执功能
+什么是report命令？
+sp给smg可以一次发送多条信息，重试
 """
- SGIP server for receiving SGIP message from SMG
-"""
+
 from optparse import OptionParser
 import eventlet
 from sgip import *
@@ -13,12 +18,12 @@ import logging
 import logging.handlers
 from datetime import datetime
 
-
 # config logger
 log_name = 'sgip_server'
 logger = logging.getLogger(log_name)
 logger.setLevel(logging.DEBUG)
-lh = logging.handlers.TimedRotatingFileHandler(log_name + '.log', when = 'midnight')
+lh = logging.handlers.TimedRotatingFileHandler(
+    log_name + '.log', when='midnight')
 lh.setLevel(logging.INFO)
 lf = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
 lh.setFormatter(lf)
@@ -26,9 +31,11 @@ logger.addHandler(lh)
 
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s : %(message)s')
 console.setFormatter(formatter)
 logger.addHandler(console)
+
 
 # SGIP Message Processor
 class SGIPProcessor(object):
@@ -60,7 +67,9 @@ class SGIPProcessor(object):
         header.unpack(raw_data)
         logger.info('# msg len: %d', header.MessageLength)
         logger.info('# command id: %d', header.CommandID)
-        logger.info('# sequence number: {0} {1} {2}'.format(header.SequenceNumber[0], header.SequenceNumber[1], header.SequenceNumber[2]))
+        logger.info('# sequence number: {0} {1} {2}'.format(
+            header.SequenceNumber[0], header.SequenceNumber[
+                1], header.SequenceNumber[2]))
         return header
 
     # process SGIP message
@@ -73,6 +82,7 @@ class SGIPProcessor(object):
                 logger.info('No header received, close the socket')
                 break
 
+            # report userrpt trace_resp
             if header.CommandID == SGIPBind.ID:
                 self.__handle_bind_msg(header)
             elif header.CommandID == SGIPDeliver.ID:
@@ -80,6 +90,8 @@ class SGIPProcessor(object):
             elif header.CommandID == SGIPUnbind.ID:
                 self.__send_sgip_unbind_resp(header)
                 break
+            elif header.CommandID == SGIPReport.ID:
+                self.__handle_report_msg(header)
 
         self.ssock.close()
 
@@ -89,7 +101,8 @@ class SGIPProcessor(object):
         if sgip_msg == None or header == None:
             return
         seq_num = header.SequenceNumber[:]
-        msgHeader = SGIPHeader(SGIPHeader.size() + sgip_msg.size(), sgip_msg.ID, seq_num)
+        msgHeader = SGIPHeader(SGIPHeader.size() + sgip_msg.size(),
+                               sgip_msg.ID, seq_num)
         sgip_msg.header = msgHeader
         raw_data = sgip_msg.pack()
         logger.info('# send raw data: %s', hexlify(raw_data))
@@ -100,6 +113,17 @@ class SGIPProcessor(object):
         unbindRespMsg = SGIPUnbindResp()
         self.__send_sgip_msg(unbindRespMsg, header)
 
+    def __handle_report_msg(self, header):
+        logger.info('handler report msg')
+        report_msg_len = header.MessageLength - header.size()
+        logger.info('report msg len: %d', deliver_msg_len)
+        raw_data = self.__recv(report_msg_len)
+        logger.info('# report raw data: %s', hexlify(raw_data))
+        reportMsg = SGIPReport()
+        reportMsg.unpackBody(raw_data)
+        logger.info('report state: %s', self.State)
+        self.__send_sgip_msg(SGIPReportResp, header)
+
     def __handle_bind_msg(self, header):
         logger.info('handle bind msg')
         # continue to receive bind msg body
@@ -107,11 +131,11 @@ class SGIPProcessor(object):
         logger.info('# bind raw data: %s', hexlify(raw_data))
         bindMsg = SGIPBind()
         bindMsg.unpackBody(raw_data)
-       	logger.info('login type: %d', bindMsg.LoginType)
+        logger.info('login type: %d', bindMsg.LoginType)
         logger.info('login name: %s', bindMsg.LoginName)
         logger.info('login pwd: %s', bindMsg.LoginPassword)
 
-	# send Bind Resp
+        # send Bind Resp
         logger.info('send bind resp')
         bindRespMsg = SGIPBindResp()
         self.__send_sgip_msg(bindRespMsg, header)
@@ -125,7 +149,8 @@ class SGIPProcessor(object):
         logger.info('# deliver raw data: %s', hexlify(raw_data))
         deliverMsg = SGIPDeliver()
         deliverMsg.contentLength = deliver_msg_len - SGIPDeliver.size()
-        logger.info('msg content len: %d - SGIPDeliver origin size: %d' % (deliverMsg.contentLength, SGIPDeliver.size()))
+        logger.info('msg content len: %d - SGIPDeliver origin size: %d' %
+                    (deliverMsg.contentLength, SGIPDeliver.size()))
         deliverMsg.unpackBody(raw_data)
         # send Deliver Resp
         logger.info('send deliver resp')
@@ -141,31 +166,25 @@ class SGIPProcessor(object):
             userNumber = deliverMsg.UserNumber[2:]
         else:
             userNumber = deliverMsg.UserNumber
-        msg_content = deliverMsg.MessageContent.upper()
-        logger.info('user number: %s msg content: %s' % (userNumber, msg_content))
-        status = ''
-        if 'DZFY' == msg_content:
-            # update the business status as opened
-            status = 'opened'
-        elif 'TDFY' == msg_content:
-            # update the business status as unopened
-            status = 'unopened'
 
-    # update business status in database
-    def _update_status(self, cursor, userNumber, status):
-        # update database
-        logger.info('updating business status in database - status: %s userNumber: %s' % (status, userNumber))
+        msg_content = deliverMsg.MessageContent.upper()
+        logger.info('user number: %s msg content: %s' %
+                    (userNumber, msg_content))
+        status = ''
 
 
 def handleMsg(ssd):
-    logger.info('client connected, start to handle request, .......................')
+    logger.info(
+        'client connected, start to handle request, .......................')
     processor = SGIPProcessor(ssd)
     processor.process()
     logger.info("close connection, ******************************")
 
+
 def main():
     parser = OptionParser()
-    parser.add_option("-p", "--port", dest = "port", help = "input port to listen", default = 8801)
+    parser.add_option(
+        "-p", "--port", dest="port", help="input port to listen", default=8801)
     (options, args) = parser.parse_args()
 
     logger.info("server is listening on port %d" % options.port)
@@ -174,15 +193,13 @@ def main():
     while True:
         try:
             new_sock, address = server.accept()
-            logger.info("accepted %s", address)
-	    pool.spawn_n(handleMsg, new_sock)
-	    logger.info('illegal SMG addr: %s - close' % address[0])
-	    new_sock.close()
+            logger.info("accepted %s %s", address, new_sock)
+            pool.spawn_n(handleMsg, new_sock)
         except (SystemExit, KeyboardInterrupt):
             logger.info('server caught exception')
-            break;
-
+            break
     return
+
 
 if __name__ == "__main__":
     main()

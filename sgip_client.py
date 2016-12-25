@@ -22,7 +22,7 @@ from conf import NODE_NUM, SP_PARAM
 # config logger
 log_name = 'sgip_client'
 logger = logging.getLogger(log_name)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 lh = logging.handlers.TimedRotatingFileHandler(
     log_name + '.log', when='midnight')
 lh.setLevel(logging.INFO)
@@ -31,7 +31,7 @@ lh.setFormatter(lf)
 logger.addHandler(lh)
 
 console = logging.StreamHandler()
-console.setLevel(logging.INFO)
+console.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s : %(message)s')
 console.setFormatter(formatter)
@@ -78,7 +78,7 @@ class SMSClient(object):
         today = datetime.today()
         seq_num2 = (((today.month * 100 + today.day) * 100 + today.hour) * 100
                     + today.minute) * 100 + today.second
-        seq_num3 = today.microsecond
+        # seq_num3 = today.microsecond
         seq_num3 = get_count()
         return [seq_num1, seq_num2, seq_num3]
 
@@ -105,26 +105,26 @@ class SMSClient(object):
     def _bind(self):
         logger.info('do bind')
         # send bind msg
-        bindMsg = SGIPBind(1, self._username, self._pwd)
-        header = SGIPHeader(SGIPHeader.size() + bindMsg.size(), SGIPBind.ID,
-                            self.gen_seq_number())
-        bindMsg.header = header
-        raw_data = bindMsg.pack()
+        bind_msg = SGIPBind(1, self._username, self._pwd)
+        bind_msg.header = SGIPHeader(SGIPHeader.size() + bind_msg.size(),
+                                     SGIPBind.ID, self.gen_seq_number())
+        raw_data = bind_msg.pack()
         self.send_data(raw_data)
         # recv bind resp msg
         resp_header_data = self.recv_data(SGIPHeader.size())
-        logger.info('header raw data: %s', hexlify(resp_header_data))
         if resp_header_data == '':
             return False
-        respHeader = SGIPHeader()
-        respHeader.unpack(resp_header_data)
-        logger.info('resp command id: {0}'.format(respHeader.CommandID))
+        resp_header = SGIPHeader()
+        resp_header.unpack(resp_header_data)
+        logger.info('bind resp cmd id: {0}'.format(resp_header.CommandID))
         resp_body_data = self.recv_data(SGIPBindResp.size())
         if resp_body_data == '':
             return False
-        bindRespMsg = SGIPBindResp()
-        bindRespMsg.unpackBody(resp_body_data)
-        if respHeader.CommandID == SGIPBindResp.ID and bindRespMsg.Result == 0:
+        bind_resp_msg = SGIPBindResp()
+        bind_resp_msg.unpackBody(resp_body_data)
+        logger.info('bind resp id %s, res: %s' % (SGIPBindResp.ID,
+                                                  bind_resp_msg.Result))
+        if resp_header.CommandID == SGIPBindResp.ID and bind_resp_msg.Result == 0:
             return True
         else:
             return False
@@ -138,20 +138,20 @@ class SMSClient(object):
         raw_data = unbindMsg.pack()
         self.send_data(raw_data)
 
-    def _submit(self, userNumber, message):
+    def _submit(self, user_number, message):
         logger.info('do submit')
         message = message.decode('utf-8').encode('gbk')
         # send submit msg
-        submitMsg = SGIPSubmit(
+        submit_msg = SGIPSubmit(
             sp_number=self._sp_number,
-            user_number=userNumber,
+            user_number=user_number,
             corp_id=self._corp_id,
             msg_len=len(message),
             msg_content=message)
-        header = SGIPHeader(SGIPHeader.size() + submitMsg.mySize(),
+        header = SGIPHeader(SGIPHeader.size() + submit_msg.mySize(),
                             SGIPSubmit.ID, self.gen_seq_number())
-        submitMsg.header = header
-        raw_data = submitMsg.pack()
+        submit_msg.header = header
+        raw_data = submit_msg.pack()
         self.send_data(raw_data)
         # recv submit msg
         resp_header_data = self.recv_data(SGIPHeader.size())
@@ -162,40 +162,40 @@ class SMSClient(object):
         if resp_body_data == '':
             logger.error('sms submit failed')
             return 1
-        submitRespMsg = SGIPSubmitResp()
-        submitRespMsg.unpackBody(resp_body_data)
+        submit_resp_msg = SGIPSubmitResp()
+        submit_resp_msg.unpackBody(resp_body_data)
         respheader = SGIPHeader()
         respheader.unpack(resp_header_data)
-        if respheader.CommandID == SGIPSubmitResp.ID and submitRespMsg.Result == 0:
+        if respheader.CommandID == SGIPSubmitResp.ID and submit_resp_msg.Result == 0:
             logger.info('sms submitted ok')
             return 0
         else:
             return 1
 
     def send_sms(self, user_number, message):
-        retFlag = 0
+        ret_flag = 0
         try:
             self._init_sgip_connection()
-            bindRet = self._bind()
-            if bindRet:
+            bind_ret = self._bind()
+            if bind_ret:
                 # submit msg
                 self._submit(user_number, message)
             else:
                 logger.error('bind failed')
-                retFlag = 1
+                ret_flag = 1
             self._unbind()
         except socket.error as (errno, strerror):
             logger.error("socket error({0}): {1}".format(errno, strerror))
-            retFlag = 2
+            ret_flag = 2
         finally:
             self._close_sgip_connection()
-        return retFlag
+        return ret_flag
 
     instance = None
 
     @classmethod
     def get_instance(cls):
-        if cls.instance == None:
+        if cls.instance is None:
             cls.instance = SMSClient(**SP_PARAM)
         return cls.instance
 
@@ -214,16 +214,16 @@ def main():
         "-m", "--message", dest="message", help="message content")
     parser.add_option(
         "-b", "--base64msg", dest="base64msg", help="base64 message content")
-    (options, args) = parser.parse_args()
-    if options.phone_number == None or (options.message == None and
-                                        options.base64msg == None):
+    options, args = parser.parse_args()
+    if options.phone_number is None or (options.message is None and
+                                        options.base64msg is None):
         logger.info('please input phone number or message')
         return 3
     phone_number = options.phone_number
-    msgContent = options.message
-    if options.base64msg != None:
-        msgContent = base64.b64decode(options.base64msg)
-    return send_sms(phone_number, msgContent)
+    msg_content = options.message
+    if options.base64msg is not None:
+        msg_content = base64.b64decode(options.base64msg)
+    return send_sms(phone_number, msg_content)
 
 
 if __name__ == "__main__":

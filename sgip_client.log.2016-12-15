@@ -1,0 +1,2 @@
+2016-12-15 18:30:42,884 - sgip_client - ERROR : bind failed
+2016-12-15 18:30:42,885 - sgip_client - ERROR : socket error(32): Broken pipe
