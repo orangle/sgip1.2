@@ -83,11 +83,11 @@ class SGIPProcessor(object):
                 self.__handle_bind_msg(header)
             elif header.CommandID == SGIPDeliver.ID:
                 self.__handle_deliver_msg(header)
+            elif header.CommandID == SGIPReport.ID:
+                self.__handle_report_msg(header)
             elif header.CommandID == SGIPUnbind.ID:
                 self.__send_sgip_unbind_resp(header)
                 break
-            elif header.CommandID == SGIPReport.ID:
-                self.__handle_report_msg(header)
         self.ssock.close()
 
     # send SGIP message
@@ -107,6 +107,9 @@ class SGIPProcessor(object):
         self.__send_sgip_msg(unbind_resp_msg, header)
 
     def __handle_report_msg(self, header):
+        """
+        对短信回执的处理(report指令)
+        """
         logger.info('handler report msg')
         report_msg_len = header.MessageLength - header.size()
         raw_data = self.__recv(report_msg_len)
@@ -133,6 +136,9 @@ class SGIPProcessor(object):
         self.__send_sgip_msg(bind_resp_msg, header)
 
     def __handle_deliver_msg(self, header):
+        """
+        上行短信类型的处理
+        """
         logger.info('handle deliver msg')
         # continue to receive deliver msg body
         deliver_msg_len = header.MessageLength - header.size()

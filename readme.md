@@ -8,9 +8,9 @@ sgip1.2 - python
 实现的内容：
 * sgip 协议的基本封包解包
 * 通过sgip协议发送命令到网关
+* sgip_server.py 用来接收 SMG 的回执信息(report)，还有对上行短信的处理，可以根据业务自行拓展
 * sgip_webapi.py 通过http协议发送短信请求，sgip_webserver.py调用联通短信接口发送短信
 
-主要是sgip.py 和 sgip_client.py 文件
 
 sgip_webapi.py  sgip_webserver.py为了解决其他ip的服务器不能直接调用联通sgip协议的问题，整个实现比较简单，可以根据需求使用其他web框架（django，tornado等）和http客户端（requests等），还有对传输内容的校验和加密等。
 
